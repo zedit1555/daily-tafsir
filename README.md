@@ -88,6 +88,18 @@ Autres sources possibles : fichiers locaux `data/tafsir/ar/2.json` et `data/tafs
 Sans `TIKTOK_ENABLED`, le workflow génère et publie seulement les images sur Pages :
 tu les récupères dans `public/posts/` pour poster à la main.
 
+## Copie automatique sur Google Drive (optionnel)
+
+Chaque passage généré peut être copié dans ton Drive, dans `Daily Tafsir/<passage>-ar` et `-en`.
+
+1. Sur ton ordinateur, installe [rclone](https://rclone.org/downloads/), puis lance `rclone config` :
+   `n` (nouveau remote) → nom **`gdrive`** → type **drive** → laisse client_id/secret vides →
+   scope **1** (accès complet) → laisse le reste par défaut → connexion Google dans le navigateur.
+2. Affiche la config avec `rclone config show gdrive`, copie tout le bloc (à partir de `[gdrive]`).
+3. Sur GitHub : secret **`RCLONE_CONFIG`** = ce bloc. Optionnel : variable `DRIVE_FOLDER` pour changer le dossier.
+
+Sans ce secret, l'étape est simplement ignorée.
+
 ## Brancher TikTok
 
 1. Sur [developers.tiktok.com](https://developers.tiktok.com), crée une app avec **Login Kit** et
