@@ -62,7 +62,7 @@ html, body { width: ${W}px; height: ${H}px; overflow: hidden; }
 body { ${backgroundCss(config)} color: var(--cream); font-family: "Amiri", serif; position: relative; }
 .decor { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* Zone sûre TikTok : rien sous les boutons (droite) ni sous la légende (bas). */
-.safe { position: absolute; top: 270px; bottom: 470px; left: 150px; right: 150px;
+.safe { position: absolute; top: 300px; bottom: 470px; left: 150px; right: 150px;
   display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .panel { width: 100%; max-height: 100%; background: rgba(10, 20, 40, .55); border: 1px solid rgba(217,181,106,.35);
   border-radius: 28px; padding: 44px 40px; display: flex; flex-direction: column; align-items: center; gap: 26px; overflow: hidden; }
@@ -75,7 +75,7 @@ body { ${backgroundCss(config)} color: var(--cream); font-family: "Amiri", serif
 .divider { width: 220px; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); flex: none; }
 .quran { font-family: "AmiriQuran", serif; line-height: 1.95; }
 .tafsir { line-height: 1.75; }
-.handle { position: absolute; top: 205px; left: 150px; right: 150px; text-align: center; font-family: "Garamond", serif;
+.handle { position: absolute; top: 232px; left: 150px; right: 150px; text-align: center; font-family: "Garamond", serif;
   font-style: italic; color: rgba(243,234,215,.7); font-size: 30px; direction: ltr; }
 .row { display: flex; justify-content: space-between; width: 100%; font-size: 32px; color: var(--gold); }
 .swipe { font-size: 34px; color: var(--gold); }
