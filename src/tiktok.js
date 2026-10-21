@@ -1,6 +1,5 @@
-// Publication d'un carrousel photo via la TikTok Content Posting API.
-// Mode par défaut : MEDIA_UPLOAD -> le carrousel arrive en brouillon dans ta boîte TikTok,
-// tu ajoutes la récitation en son et tu publies. DIRECT_POST nécessite une app auditée.
+// Publication d'une vidéo via la TikTok Content Posting API.
+// Mode par défaut : MEDIA_UPLOAD -> la vidéo arrive en brouillon dans ta boîte TikTok, tu publies. DIRECT_POST nécessite une app auditée.
 const API = "https://open.tiktokapis.com/v2";
 
 // Limite TikTok : 6 requêtes / minute par token, d'où l'attente de 12 s entre deux vérifications.
@@ -35,22 +34,22 @@ export async function refreshAccessToken({ clientKey, clientSecret, refreshToken
 
 const truncate = (s, max) => [...s].slice(0, max).join("");
 
-export async function publishCarousel({ token, imageUrls, title, description, mode = "MEDIA_UPLOAD" }) {
-  const post_info = { title: truncate(title, 90), description: truncate(description, 4000) };
-
-  if (mode === "DIRECT_POST") {
-    const creator = await call(`${API}/post/publish/creator_info/query/`, token);
-    const options = creator.privacy_level_options ?? [];
-    post_info.privacy_level = options.includes("PUBLIC_TO_EVERYONE") ? "PUBLIC_TO_EVERYONE" : options[0];
-    post_info.auto_add_music = true;
+// Vidéo depuis une URL publique (domaine vérifié dans l'app TikTok).
+//   MEDIA_UPLOAD : brouillon dans la boîte TikTok -> /post/publish/inbox/video/init/
+//   DIRECT_POST  : publication directe (app auditée) -> /post/publish/video/init/
+export async function publishVideo({ token, videoUrl, title, description, mode = "MEDIA_UPLOAD" }) {
+  const source_info = { source: "PULL_FROM_URL", video_url: videoUrl };
+  if (mode !== "DIRECT_POST") {
+    const data = await call(`${API}/post/publish/inbox/video/init/`, token, { source_info });
+    return data.publish_id;
   }
-
-  const data = await call(`${API}/post/publish/content/init/`, token, {
-    post_info,
-    source_info: { source: "PULL_FROM_URL", photo_cover_index: 0, photo_images: imageUrls },
-    post_mode: mode,
-    media_type: "PHOTO",
-  });
+  const creator = await call(`${API}/post/publish/creator_info/query/`, token);
+  const options = creator.privacy_level_options ?? [];
+  const post_info = {
+    title: truncate(`${title}\n${description}`, 2200),
+    privacy_level: options.includes("PUBLIC_TO_EVERYONE") ? "PUBLIC_TO_EVERYONE" : options[0],
+  };
+  const data = await call(`${API}/post/publish/video/init/`, token, { post_info, source_info });
   return data.publish_id;
 }
 

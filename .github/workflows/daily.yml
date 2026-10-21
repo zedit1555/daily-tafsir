@@ -1,4 +1,4 @@
-name: Carrousel quotidien
+name: Vidéo quotidienne
 
 on:
   schedule:
@@ -81,8 +81,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state.json public
-          git commit -m "Carrousel $(jq -r .id public/latest.json)" || echo "Rien à commiter"
+          git commit -m "Vidéo $(jq -r .id public/latest.json)" || echo "Rien à commiter"
           git push
+
+      - name: Publier les vidéos (release GitHub)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(jq -r .id public/latest.json)
+          gh release create "$ID" public/posts/${ID}-*/*.mp4 \
+            --title "$(jq -r '.posts[0].title' public/latest.json)" \
+            --notes "$(cat public/posts/${ID}-ar/caption.txt 2>/dev/null || echo "Daily Tafsir")"
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -115,7 +124,7 @@ jobs:
 
       - name: Attendre que les images soient en ligne
         run: |
-          FIRST=$(jq -r '.posts[-1].files[-1]' public/latest.json)
+          FIRST=$(jq -r '.posts[-1].video' public/latest.json)
           for i in $(seq 1 30); do
             curl -sfI "${{ vars.PUBLIC_BASE_URL }}/$FIRST" >/dev/null && exit 0
             sleep 10

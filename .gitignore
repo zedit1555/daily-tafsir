@@ -1,3 +1,5 @@
 node_modules/
 out/
 .env
+.audio/
+public/**/*.mp4

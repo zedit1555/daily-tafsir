@@ -1,20 +1,18 @@
-# Daily Tafsir — carrousels TikTok automatiques
+# Daily Tafsir — vidéos TikTok automatiques
 
-Chaque jour, GitHub Actions génère **deux carrousels du même passage** pour **@tafsir.daily** :
-un en **arabe** (tafsir Al-Mukhtasar arabe) et un en **anglais** (Al-Mukhtasar anglais).
-Le verset reste toujours en arabe. Chaque post a sa légende et ses hashtags.
+Chaque jour, GitHub Actions génère **deux vidéos du même passage** pour **@tafsir.daily** :
+une en **arabe** (tafsir Al-Mukhtasar arabe) et une en **anglais** (Al-Mukhtasar anglais).
 
-Structure de chaque carrousel :
+Déroulé de chaque vidéo (1080×1920) :
+1. **Couverture** « افهم هذه الآيات في دقيقة » + sourate + versets, sur l'isti'adha (أعوذ بالله من الشيطان الرجيم)
+2. **Une scène par verset** : le verset + son tafsir, affichés pendant la récitation de ce verset
+3. **Scène finale** « تابع للجزء القادم » + @tafsir.daily (3 secondes)
 
-1. **Couverture** : « افهم هذه الآيات في دقيقة » + sourate + numéros des versets + premiers mots
-2. **Une slide par verset** : le verset (police coranique Amiri Quran) + son tafsir
-3. **Slide finale** : « تابع للجزء القادم » + versets suivants + @tafsir.daily
+Un verset trop long est coupé en deux scènes (verset, puis tafsir) qui se partagent sa récitation.
+Les vidéos sont publiées en **release GitHub** et visibles dans la galerie GitHub Pages.
 
-Les images (1080×1920, JPEG) sont publiées sur GitHub Pages, puis envoyées à TikTok
-en **brouillon** : tu ajoutes la récitation en son dans l'app et tu publies.
-
-Un verset trop long est automatiquement coupé en deux slides (verset, puis tafsir),
-et la taille du texte s'adapte toute seule. Tout le texte reste dans la zone sûre TikTok.
+L'isti'adha vient d'everyayah.com (celle d'Alafasy si le récitateur choisi n'en a pas).
+Pour utiliser ta propre version, dépose un fichier `assets/istiadha.mp3`.
 
 ---
 
@@ -33,16 +31,16 @@ Tu peux déjà poster ces images à la main en attendant de brancher l'automatis
 
 ## Lancer à la main (versets et récitateur au choix)
 
-**Actions → Carrousel quotidien → Run workflow**, puis remplis :
+**Actions → Vidéo quotidienne → Run workflow**, puis remplis :
 
 | Champ | Effet |
 |---|---|
 | Sourate / Premier verset / Dernier verset | le passage à générer. Laisse vide pour le passage suivant de la série |
-| Récitateur | nom affiché sur la couverture et dans la légende + MP3 de la récitation (everyayah.com) |
+| Récitateur | voix de la récitation (everyayah.com), nom affiché sur la couverture et dans la légende |
 | Numéro de partie | optionnel, affiché sur la couverture |
 | Continuer la série | coché : la série automatique reprendra après ces versets. Décoché : elle ne bouge pas |
 
-Chaque passage a un ZIP (images + légende + récitation) et un `recitation.mp3` téléchargeables depuis la galerie, à ajouter comme son dans TikTok.
+Chaque vidéo est téléchargeable depuis la galerie, avec sa légende.
 Le récitateur par défaut (runs automatiques) se règle dans `config.json` (`"reciter"`) ou via la variable `RECITER`.
 Pour ajouter un récitateur : son nom dans `src/reciters.js` et dans la liste du workflow.
 
@@ -82,7 +80,7 @@ Autres sources possibles : fichiers locaux `data/tafsir/ar/2.json` et `data/tafs
    - Secrets : `MUKHTASAR_EMAIL`, `MUKHTASAR_PASSWORD`, `BOOK_AR`, `BOOK_EN`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REFRESH_TOKEN`,
      et `GH_PAT` (token GitHub avec droit « Secrets » sur ce repo, pour renouveler le token TikTok automatiquement)
    - Variables : `PUBLIC_BASE_URL` (ex. `https://tafsir.ton-domaine.com`), `TIKTOK_ENABLED=true`
-4. Lance le workflow une fois à la main (**Actions → Carrousel quotidien → Run workflow**).
+4. Lance le workflow une fois à la main (**Actions → Vidéo quotidienne → Run workflow**).
    Ensuite il tourne tous les jours à 19h07 (heure d'été de Paris).
 
 Sans `TIKTOK_ENABLED`, le workflow génère et publie seulement les images sur Pages :

@@ -1,5 +1,6 @@
 {
   "handle": "@tafsir.daily",
+  "repo": "zedit1555/daily-tafsir",
   "reciter": "Yasser_Ad-Dussary_128kbps",
   "languages": ["ar", "en"],
   "ayatPerPost": 4,
@@ -14,7 +15,6 @@
       "tafsirLabel": "التفسير المختصر",
       "endTitle": "تابع للجزء القادم",
       "endText": "تابع الحساب ليصلك تفسير جديد كل يوم",
-      "swipe": "اسحب ←",
       "hashtags": ["#تفسير", "#القرآن_الكريم", "#تدبر", "#quran", "#tafsir"]
     },
     "en": {
@@ -23,7 +23,6 @@
       "tafsirLabel": "Al-Mukhtasar in Tafsir",
       "endTitle": "Next part coming soon",
       "endText": "Follow for a new tafsir every day",
-      "swipe": "Swipe →",
       "hashtags": ["#quran", "#tafsir", "#islam", "#quranexplained", "#daily_tafsir"]
     }
   }

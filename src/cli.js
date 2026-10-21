@@ -1,20 +1,21 @@
 #!/usr/bin/env node
 // Usage :
-//   node src/cli.js generate --surah 2 --from 142 --to 145 [--part 23] [--lang ar|en]  -> out/2-142-145-{lang}/
-//   node src/cli.js demo        -> out/demo-{lang}/ (sans réseau)
-//   node src/cli.js daily       -> génère le prochain passage (un post par langue) dans public/posts/
+//   node src/cli.js generate --surah 2 --from 142 --to 145 [--part 23] [--lang ar|en] [--reciter X]
+//                               -> out/2-142-145-{lang}/ (slides + vidéo)
+//   node src/cli.js demo        -> out/demo-{lang}/ (slides seulement, sans réseau)
+//   node src/cli.js daily       -> génère la vidéo du prochain passage (une par langue) dans public/posts/
 //                                  (variables SURAH, FROM_AYAH, TO_AYAH, RECITER, PART, CONTINUE pour un passage choisi)
 //   node src/cli.js index       -> régénère public/index.html (galerie des posts)
 //   node src/cli.js publish     -> envoie les posts de public/latest.json à TikTok
 import fs from "node:fs";
-import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { renderPassage } from "./render.js";
 import { loadPassage, nextRange } from "./data.js";
 import { surahName, surahNameEn, arNum, ayahCount } from "./surahs.js";
-import { buildRecitation } from "./audio.js";
+import { downloadRecitation } from "./audio.js";
+import { buildVideo } from "./video.js";
 import { reciterName } from "./reciters.js";
-import { refreshAccessToken, publishCarousel, waitForStatus } from "./tiktok.js";
+import { refreshAccessToken, publishVideo, waitForStatus } from "./tiktok.js";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, "config.json"), "utf8"));
@@ -23,6 +24,7 @@ const args = Object.fromEntries(
   rest.flatMap((v, i, a) => (v.startsWith("--") ? [[v.slice(2), a[i + 1]]] : []))
 );
 const langs = args.lang ? [args.lang] : config.languages;
+const REPO = process.env.GITHUB_REPOSITORY || config.repo;
 
 function caption(p, lang) {
   const t = config.text[lang];
@@ -38,12 +40,18 @@ function caption(p, lang) {
   return { title, description: `${t.coverMessage} 🌙\n${title}${recLine}\n\n${t.hashtags.join(" ")}` };
 }
 
-async function build(passage, lang, outDir) {
-  const files = await renderPassage(config, passage, outDir, lang);
+async function build(passage, lang, outDir, audio, videoName) {
+  const slides = await renderPassage(config, passage, outDir, lang);
   const cap = caption(passage, lang);
   fs.writeFileSync(path.join(outDir, "caption.txt"), `${cap.title}\n\n${cap.description}\n`);
-  console.log(`✅ [${lang}] ${files.length} slides -> ${path.relative(ROOT, outDir)}`);
-  return { lang, files, ...cap };
+  let video = null;
+  if (audio) {
+    video = buildVideo(slides, audio, path.join(outDir, videoName));
+    // Seule la couverture reste à côté de la vidéo (utile comme miniature TikTok).
+    for (const s of slides) if (s.kind !== "cover") fs.rmSync(s.file, { force: true });
+  }
+  console.log(`✅ [${lang}] ${slides.length} scènes${video ? " + vidéo" : ""} -> ${path.relative(ROOT, outDir)}`);
+  return { lang, slides, video, ...cap };
 }
 
 // Page d'accueil GitHub Pages : galerie des derniers posts, pour télécharger les images depuis le téléphone.
@@ -53,25 +61,29 @@ function buildIndex() {
     .sort((a, b) => b.slice(0, -3).localeCompare(a.slice(0, -3)) || a.localeCompare(b)); // récent d'abord, arabe puis anglais
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const sections = dirs.map((d) => {
-    const imgs = fs.readdirSync(path.join(postsDir, d)).filter((f) => f.endsWith(".jpg")).sort();
-    const capPath = path.join(postsDir, d, "caption.txt");
+    const dirPath = path.join(postsDir, d);
+    const files = fs.readdirSync(dirPath);
+    const capPath = path.join(dirPath, "caption.txt");
     const cap = fs.existsSync(capPath) ? fs.readFileSync(capPath, "utf8").trim() : "";
-    const hasAudio = fs.existsSync(path.join(postsDir, d, "recitation.mp3"));
-    const zip = fs.readdirSync(path.join(postsDir, d)).find((f) => f.endsWith(".zip"));
+    const metaPath = path.join(dirPath, "meta.json");
+    const meta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, "utf8")) : null;
+    const body = meta?.videoUrl
+      ? `<video controls playsinline preload="none" poster="posts/${d}/01-cover.jpg" src="${meta.videoUrl}"></video>
+<p><a class="btn" href="${meta.videoUrl}" download>⬇️ Télécharger la vidéo</a></p>`
+      : `<div class="grid">${files.filter((f) => f.endsWith(".jpg")).sort()
+          .map((f) => `<a href="posts/${d}/${f}" download><img loading="lazy" src="posts/${d}/${f}" alt="${f}"></a>`).join("")}</div>`;
     return `<section><h2>${esc(d)}</h2>
-${zip ? `<p><a class="btn" href="posts/${d}/${zip}" download>⬇️ Tout télécharger (ZIP)</a></p>` : ""}
-${hasAudio ? `<p><a href="posts/${d}/recitation.mp3" download>🎧 Télécharger la récitation (MP3)</a></p>` : ""}
-<details><summary>Légende</summary><pre>${esc(cap)}</pre></details>
-<div class="grid">${imgs.map((f) => `<a href="posts/${d}/${f}" download><img loading="lazy" src="posts/${d}/${f}" alt="${f}"></a>`).join("")}</div></section>`;
+${body}
+<details><summary>Légende</summary><pre>${esc(cap)}</pre></details></section>`;
   });
   fs.writeFileSync(path.join(ROOT, "public", "index.html"), `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Daily Tafsir</title>
 <style>body{margin:0;padding:16px;background:#0f1c33;color:#f3ead7;font-family:system-ui,sans-serif}
 h1{color:#d9b56a;font-size:22px}h2{font-size:16px;color:#d9b56a;margin:24px 0 8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
-img{width:100%;border-radius:8px;display:block}pre{white-space:pre-wrap;background:#16284a;padding:12px;border-radius:8px}
+img,video{width:100%;max-width:360px;border-radius:8px;display:block}pre{white-space:pre-wrap;background:#16284a;padding:12px;border-radius:8px}
 summary{cursor:pointer;color:#c9c1ae}a{color:#d9b56a}.btn{display:inline-block;background:#d9b56a;color:#0f1c33;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600}</style></head><body>
-<h1>Daily Tafsir — derniers carrousels</h1><p>Touche une image pour la télécharger.</p>
+<h1>Daily Tafsir — dernières vidéos</h1>
 ${sections.join("\n")}</body></html>`);
 }
 
@@ -81,8 +93,13 @@ async function main() {
   if (cmd === "generate") {
     const surah = +args.surah, from = +args.from, to = +(args.to ?? args.from);
     if (!surah || !from) throw new Error("Usage : generate --surah 2 --from 142 --to 145");
-    const passage = await loadPassage({ ...config, languages: langs }, { surah, from, to, part: args.part ? +args.part : null });
-    for (const lang of langs) await build(passage, lang, path.join(ROOT, "out", `${surah}-${from}-${to}-${lang}`));
+    const reciter = args.reciter || config.reciter;
+    const passage = { ...(await loadPassage({ ...config, languages: langs }, { surah, from, to, part: args.part ? +args.part : null })), reciter };
+    const audio = await downloadRecitation(reciter, { surah, from, to }, path.join(ROOT, "out", ".audio"));
+    for (const lang of langs) {
+      await build(passage, lang, path.join(ROOT, "out", `${surah}-${from}-${to}-${lang}`), audio, `${surah}-${from}-${to}-${lang}.mp4`);
+    }
+    fs.rmSync(path.join(ROOT, "out", ".audio"), { recursive: true, force: true });
     return;
   }
 
@@ -116,30 +133,20 @@ async function main() {
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
     const id = `${stamp}-${range.surah}-${range.from}-${range.to}`;
 
+    const audioDir = path.join(ROOT, ".audio");
+    const audio = await downloadRecitation(reciter, range, audioDir);
     const posts = [];
     for (const lang of config.languages) {
       const dir = `${id}-${lang}`;
-      const post = await build(passage, lang, path.join(ROOT, "public", "posts", dir));
-      posts.push({ ...post, files: post.files.map((f) => `posts/${dir}/${path.basename(f)}`) });
+      const name = `${dir}.mp4`;
+      const post = await build(passage, lang, path.join(ROOT, "public", "posts", dir), audio, name);
+      // La vidéo est publiée comme release GitHub (pas commitée) : lien permanent pour la galerie.
+      const videoUrl = REPO ? `https://github.com/${REPO}/releases/download/${id}/${name}` : null;
+      fs.writeFileSync(path.join(ROOT, "public", "posts", dir, "meta.json"), JSON.stringify({ videoUrl }, null, 2));
+      posts.push({ lang, title: post.title, description: post.description,
+        video: `posts/${dir}/${name}`, cover: `posts/${dir}/01-cover.jpg` });
     }
-    if (reciter) {
-      // Un seul MP3 pour le passage, copié dans le dossier de chaque langue.
-      const first = path.join(ROOT, "public", "posts", `${id}-${config.languages[0]}`, "recitation.mp3");
-      await buildRecitation(reciter, range, first);
-      for (const lang of config.languages.slice(1)) {
-        fs.copyFileSync(first, path.join(ROOT, "public", "posts", `${id}-${lang}`, "recitation.mp3"));
-      }
-      console.log(`🎧 Récitation (${reciter}) ajoutée`);
-    }
-    // Un ZIP par langue (images + légende + récitation) pour tout télécharger d'un coup.
-    for (const lang of config.languages) {
-      const dir = path.join(ROOT, "public", "posts", `${id}-${lang}`);
-      try {
-        execFileSync("zip", ["-q", "-j", path.join(dir, `${id}-${lang}.zip`), ...fs.readdirSync(dir).map((f) => path.join(dir, f))]);
-      } catch {
-        console.warn("⚠️  zip indisponible : pas d'archive pour", lang);
-      }
-    }
+    fs.rmSync(audioDir, { recursive: true, force: true });
     fs.writeFileSync(path.join(ROOT, "public", "latest.json"), JSON.stringify({ id, posts }, null, 2));
 
     // Ne garde que les 7 derniers passages pour ne pas alourdir le repo.
@@ -191,9 +198,9 @@ async function main() {
         tokens[suffix] = tok.access_token;
       }
 
-      const publishId = await publishCarousel({
+      const publishId = await publishVideo({
         token: tokens[suffix],
-        imageUrls: post.files.map((f) => `${base}/${f}`),
+        videoUrl: `${base}/${post.video}`,
         title: post.title,
         description: post.description,
         mode: env.TIKTOK_POST_MODE || "MEDIA_UPLOAD",

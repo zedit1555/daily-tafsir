@@ -140,7 +140,7 @@ function coverInner(config, p, lang) {
     <div class="quran" data-fit="46" data-min="30" style="color:var(--muted)">﴿ ${esc(first)} … ﴾</div>
     ${rec ? `<div class="${en ? "latin" : ""}" data-fit="34" data-min="26" style="color:var(--muted)">${en ? `Recited by ${esc(rec)}` : `بصوت الشيخ ${esc(rec)}`}</div>` : ""}
     <div class="divider"></div>
-    <div class="swipe ${en ? "latin" : ""}">${esc(t.swipe)}${p.part ? ` &nbsp;•&nbsp; ${L.part(p.part)}` : ""}</div>`;
+    ${p.part ? `<div class="swipe ${en ? "latin" : ""}">${L.part(p.part)}</div>` : ""}`;
 }
 
 function verseInner(config, p, a, idx, mode, lang) {
@@ -163,19 +163,16 @@ function endInner(config, p, lang) {
   const t = config.text[lang];
   const L = labels(lang, p);
   const en = lang === "en";
-  const next = p.next
-    ? `<div class="${en ? "latin" : ""}" data-fit="46" data-min="30">${esc(L.surah(p.next.surah))} • ${L.range(p.next.from, p.next.to)}</div>`
-    : "";
   return `
     <div class="gold ${en ? "latin" : ""}" style="font-weight:700" data-fit="76" data-min="46">${esc(t.endTitle)}</div>
-    ${next}
     <div class="divider"></div>
     <div class="${en ? "latin" : ""}" data-fit="46" data-min="30">${esc(t.endText)}</div>
     <div class="gold en" style="font-size:52px">${esc(config.handle)}</div>`;
 }
 
 /**
- * Rend un passage en slides JPEG dans outDir. Retourne la liste des fichiers.
+ * Rend un passage en slides JPEG dans outDir.
+ * Retourne [{ file, kind: "cover"|"ayah"|"end", ayah?, part? }] (part 1/2 quand un verset est coupé en deux).
  * passage = { surah, from, to, part, ayat: [{ ayah, text, tafsirAr, tafsirEn? }], next: {surah, from, to} | null }
  */
 export async function renderPassage(config, passage, outDir, lang = "ar") {
@@ -185,7 +182,7 @@ export async function renderPassage(config, passage, outDir, lang = "ar") {
   const files = [];
   const tmp = path.join(outDir, "_slide.html");
 
-  const shoot = async (inner, name) => {
+  const shoot = async (inner, name, meta = {}) => {
     fs.writeFileSync(tmp, pageHtml(config, inner, lang));
     await page.goto(pathToFileURL(tmp).href);
     await page.evaluate(() => document.fonts.ready);
@@ -193,26 +190,26 @@ export async function renderPassage(config, passage, outDir, lang = "ar") {
     if (!fit.overflow) {
       const file = path.join(outDir, name);
       await page.screenshot({ path: file, type: "jpeg", quality: config.jpegQuality ?? 92 });
-      files.push(file);
+      files.push({ file, ...meta });
     }
     return fit;
   };
 
   try {
-    await shoot(coverInner(config, passage, lang), "01-cover.jpg");
+    await shoot(coverInner(config, passage, lang), "01-cover.jpg", { kind: "cover" });
     let n = 2;
     for (const [i, a] of passage.ayat.entries()) {
       const id = String(n).padStart(2, "0");
-      const fit = await shoot(verseInner(config, passage, a, i, "both", lang), `${id}-ayah-${a.ayah}.jpg`);
+      const fit = await shoot(verseInner(config, passage, a, i, "both", lang), `${id}-ayah-${a.ayah}.jpg`, { kind: "ayah", ayah: a.ayah });
       if (fit.overflow) {
         // Verset trop long : on sépare verset et tafsir sur deux slides.
-        const f1 = await shoot(verseInner(config, passage, a, i, "ayah", lang), `${id}a-ayah-${a.ayah}.jpg`);
-        const f2 = await shoot(verseInner(config, passage, a, i, "tafsir", lang), `${id}b-tafsir-${a.ayah}.jpg`);
+        const f1 = await shoot(verseInner(config, passage, a, i, "ayah", lang), `${id}a-ayah-${a.ayah}.jpg`, { kind: "ayah", ayah: a.ayah, part: 1 });
+        const f2 = await shoot(verseInner(config, passage, a, i, "tafsir", lang), `${id}b-tafsir-${a.ayah}.jpg`, { kind: "ayah", ayah: a.ayah, part: 2 });
         if (f1.overflow || f2.overflow) console.warn(`⚠️  Verset ${passage.surah}:${a.ayah} trop long même sur 2 slides — à vérifier.`);
       }
       n++;
     }
-    await shoot(endInner(config, passage, lang), `${String(n).padStart(2, "0")}-end.jpg`);
+    await shoot(endInner(config, passage, lang), `${String(n).padStart(2, "0")}-end.jpg`, { kind: "end" });
   } finally {
     await browser.close();
     fs.rmSync(tmp, { force: true });
