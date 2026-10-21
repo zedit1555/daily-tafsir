@@ -29,6 +29,10 @@ jobs:
       - name: Générer le carrousel du jour
         run: npm run daily
         env:
+          MUKHTASAR_EMAIL: ${{ secrets.MUKHTASAR_EMAIL }}
+          MUKHTASAR_PASSWORD: ${{ secrets.MUKHTASAR_PASSWORD }}
+          BOOK_AR: ${{ secrets.BOOK_AR }}
+          BOOK_EN: ${{ secrets.BOOK_EN }}
           TAFSIR_AR_URL: ${{ secrets.TAFSIR_AR_URL }}
           TAFSIR_AR_PATH: ${{ vars.TAFSIR_AR_PATH }}
           TAFSIR_EN_URL: ${{ secrets.TAFSIR_EN_URL }}

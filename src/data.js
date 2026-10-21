@@ -3,9 +3,10 @@
 // Texte coranique : API quran.com (texte uthmani officiel), ou fichier local data/quran/{surah}.json.
 // Tafsir (arabe et anglais) : dans cet ordre de priorité
 //   1. fichier local data/tafsir/{ar|en}/{surah}.json  ->  { "142": "texte...", ... }
-//   2. ton API Mukhtasar via TAFSIR_AR_URL / TAFSIR_EN_URL (gabarit avec {surah} et {ayah})
+//   2. API Al-Mukhtasar (admin.mokhtasr.com) : MUKHTASAR_EMAIL, MUKHTASAR_PASSWORD, BOOK_AR, BOOK_EN
+//   3. autre API via TAFSIR_AR_URL / TAFSIR_EN_URL (gabarit avec {surah} et {ayah})
 //      + TAFSIR_AR_PATH / TAFSIR_EN_PATH : chemin du champ texte dans la réponse JSON (ex. "data.text")
-//   3. TAFSIR_FALLBACK=muyassar : Tafsir al-Muyassar via quran.com (dépannage seulement)
+//   4. TAFSIR_FALLBACK=muyassar : Tafsir al-Muyassar via quran.com (dépannage seulement)
 import fs from "node:fs";
 import path from "node:path";
 import { ayahCount } from "./surahs.js";
@@ -17,12 +18,15 @@ const readJson = (p) => (fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8"
 const getPath = (obj, p) =>
   p.split(".").filter(Boolean).reduce((o, k) => (o == null ? o : Array.isArray(o) ? o[+k] : o[k]), obj);
 
-// Retire les balises HTML et notes éventuelles renvoyées par certaines API.
+// Retire les balises HTML (<br>, <p>…) et entités renvoyées par certaines API.
 const clean = (s) =>
   String(s ?? "")
     .replace(/<sup[^>]*>.*?<\/sup>/gs, "")
-    .replace(/<[^>]+>/g, "")
+    .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -32,16 +36,39 @@ async function getJson(url) {
   return res.json();
 }
 
-const quranCache = new Map();
 async function quranText(surah, ayah) {
   const local = readJson(path.join(ROOT, "data", "quran", `${surah}.json`));
   if (local?.[ayah]) return local[ayah];
-  if (!quranCache.has(surah)) {
-    const json = await getJson(`https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number=${surah}`);
-    quranCache.set(surah, new Map(json.verses.map((v) => [+v.verse_key.split(":")[1], v.text_uthmani])));
-  }
-  const text = quranCache.get(surah).get(ayah);
+  const json = await getJson(`https://api.quran.com/api/v4/quran/verses/uthmani?verse_key=${surah}:${ayah}`);
+  const text = json.verses?.[0]?.text_uthmani;
   if (!text) throw new Error(`Texte introuvable pour ${surah}:${ayah}`);
+  return text;
+}
+
+// API Al-Mukhtasar (admin.mokhtasr.com) : connexion une fois, puis un appel par verset et par langue.
+// Mêmes secrets que le repo tafsir-daily-renderer : MUKHTASAR_EMAIL, MUKHTASAR_PASSWORD, BOOK_AR, BOOK_EN.
+const MUKHTASAR_API = "https://admin.mokhtasr.com/api/v1";
+let mukhtasarToken = null;
+
+async function mukhtasarLogin() {
+  if (mukhtasarToken) return mukhtasarToken;
+  const qs = new URLSearchParams({ email: process.env.MUKHTASAR_EMAIL, password: process.env.MUKHTASAR_PASSWORD });
+  const res = await fetch(`${MUKHTASAR_API}/app/login?${qs}`, { method: "POST", headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Connexion Mukhtasar refusée (HTTP ${res.status})`);
+  mukhtasarToken = (await res.json())?.data?.token;
+  if (!mukhtasarToken) throw new Error("Token introuvable dans la réponse de connexion Mukhtasar (data.token)");
+  return mukhtasarToken;
+}
+
+async function mukhtasarTafsir(lang, surah, ayah) {
+  const token = await mukhtasarLogin();
+  const qs = new URLSearchParams({ lang, sura: surah, aya: ayah, books: process.env[`BOOK_${lang.toUpperCase()}`] });
+  const res = await fetch(`${MUKHTASAR_API}/book-contents?${qs}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Mukhtasar HTTP ${res.status} pour ${lang} ${surah}:${ayah}`);
+  const text = clean((await res.json())?.data?.[0]?.books?.[0]?.text);
+  if (!text) throw new Error(`Tafsir Mukhtasar vide pour ${lang} ${surah}:${ayah}`);
   return text;
 }
 
@@ -50,6 +77,8 @@ async function tafsir(lang, surah, ayah) {
   if (local?.[ayah]) return clean(local[ayah]);
 
   const L = lang.toUpperCase();
+  if (process.env.MUKHTASAR_EMAIL && process.env[`BOOK_${L}`]) return mukhtasarTafsir(lang, surah, ayah);
+
   const tpl = process.env[`TAFSIR_${L}_URL`];
   if (tpl) {
     const json = await getJson(tpl.replaceAll("{surah}", surah).replaceAll("{ayah}", ayah));

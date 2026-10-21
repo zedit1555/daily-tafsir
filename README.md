@@ -44,15 +44,19 @@ Dans Canva, crée un design 1080×1920 avec seulement le décor (ciel, arche dor
 **sans aucun texte**, exporte-le en JPG et enregistre-le sous `assets/background.jpg`.
 
 ### Source du tafsir (Al-Mukhtasar)
-Le texte coranique vient de l'API quran.com (texte uthmani). Pour le tafsir, deux options :
+Le texte coranique vient de l'API quran.com (texte uthmani). Le tafsir vient de l'**API Al-Mukhtasar**
+(admin.mokhtasr.com), avec les mêmes identifiants que le repo `tafsir-daily-renderer` :
 
-- **Ton API Mukhtasar** (celle que tu utilises déjà dans Make) — secrets / variables GitHub :
-  - `TAFSIR_AR_URL` : URL avec `{surah}` et `{ayah}`, ex. `https://exemple.com/api/tafsir/{surah}/{ayah}`
-  - `TAFSIR_AR_PATH` (variable) : chemin du texte dans le JSON, ex. `data.text`
-  - idem `TAFSIR_EN_URL` / `TAFSIR_EN_PATH` pour le tafsir anglais
-- **Fichiers locaux** : `data/tafsir/ar/2.json` et `data/tafsir/en/2.json` → `{ "158": "...", "159": "..." }` (prioritaires sur l'API)
+| Secret | Valeur |
+|---|---|
+| `MUKHTASAR_EMAIL` | email de ton compte Mukhtasar |
+| `MUKHTASAR_PASSWORD` | mot de passe de ce compte |
+| `BOOK_AR` | identifiant du livre Al-Mukhtasar arabe |
+| `BOOK_EN` | identifiant du livre Al-Mukhtasar anglais |
 
-En dépannage uniquement, la variable `TAFSIR_FALLBACK=muyassar` utilise Tafsir al-Muyassar (quran.com).
+Autres sources possibles : fichiers locaux `data/tafsir/ar/2.json` et `data/tafsir/en/2.json`
+→ `{ "158": "...", "159": "..." }` (prioritaires), ou une autre API via `TAFSIR_AR_URL` / `TAFSIR_EN_URL`
+(gabarit avec `{surah}` et `{ayah}`) + `TAFSIR_AR_PATH` / `TAFSIR_EN_PATH`.
 
 ## Mise en ligne sur GitHub
 
@@ -60,9 +64,9 @@ En dépannage uniquement, la variable `TAFSIR_FALLBACK=muyassar` utilise Tafsir 
 2. **Settings → Pages → Source : GitHub Actions.** Ajoute un domaine perso (ex. `tafsir.ton-domaine.com`) :
    TikTok exige un domaine dont tu prouves la propriété.
 3. **Settings → Secrets and variables → Actions** :
-   - Secrets : `TAFSIR_AR_URL`, `TAFSIR_EN_URL`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REFRESH_TOKEN`,
+   - Secrets : `MUKHTASAR_EMAIL`, `MUKHTASAR_PASSWORD`, `BOOK_AR`, `BOOK_EN`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REFRESH_TOKEN`,
      et `GH_PAT` (token GitHub avec droit « Secrets » sur ce repo, pour renouveler le token TikTok automatiquement)
-   - Variables : `TAFSIR_AR_PATH`, `TAFSIR_EN_PATH`, `PUBLIC_BASE_URL` (ex. `https://tafsir.ton-domaine.com`), `TIKTOK_ENABLED=true`
+   - Variables : `PUBLIC_BASE_URL` (ex. `https://tafsir.ton-domaine.com`), `TIKTOK_ENABLED=true`
 4. Lance le workflow une fois à la main (**Actions → Carrousel quotidien → Run workflow**).
    Ensuite il tourne tous les jours à 19h07 (heure d'été de Paris).
 
