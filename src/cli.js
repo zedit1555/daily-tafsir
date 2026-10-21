@@ -3,6 +3,7 @@
 //   node src/cli.js generate --surah 2 --from 142 --to 145 [--part 23] [--lang ar|en]  -> out/2-142-145-{lang}/
 //   node src/cli.js demo        -> out/demo-{lang}/ (sans réseau)
 //   node src/cli.js daily       -> génère le prochain passage (un post par langue) dans public/posts/
+//   node src/cli.js index       -> régénère public/index.html (galerie des posts)
 //   node src/cli.js publish     -> envoie les posts de public/latest.json à TikTok
 import fs from "node:fs";
 import path from "node:path";
@@ -39,7 +40,34 @@ async function build(passage, lang, outDir) {
   return { lang, files, ...cap };
 }
 
+// Page d'accueil GitHub Pages : galerie des derniers posts, pour télécharger les images depuis le téléphone.
+function buildIndex() {
+  const postsDir = path.join(ROOT, "public", "posts");
+  const dirs = fs.readdirSync(postsDir).filter((d) => !d.startsWith("."))
+    .sort((a, b) => b.slice(0, -3).localeCompare(a.slice(0, -3)) || a.localeCompare(b)); // récent d'abord, arabe puis anglais
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const sections = dirs.map((d) => {
+    const imgs = fs.readdirSync(path.join(postsDir, d)).filter((f) => f.endsWith(".jpg")).sort();
+    const capPath = path.join(postsDir, d, "caption.txt");
+    const cap = fs.existsSync(capPath) ? fs.readFileSync(capPath, "utf8").trim() : "";
+    return `<section><h2>${esc(d)}</h2>
+<details><summary>Légende</summary><pre>${esc(cap)}</pre></details>
+<div class="grid">${imgs.map((f) => `<a href="posts/${d}/${f}" download><img loading="lazy" src="posts/${d}/${f}" alt="${f}"></a>`).join("")}</div></section>`;
+  });
+  fs.writeFileSync(path.join(ROOT, "public", "index.html"), `<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Daily Tafsir</title>
+<style>body{margin:0;padding:16px;background:#0f1c33;color:#f3ead7;font-family:system-ui,sans-serif}
+h1{color:#d9b56a;font-size:22px}h2{font-size:16px;color:#d9b56a;margin:24px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+img{width:100%;border-radius:8px;display:block}pre{white-space:pre-wrap;background:#16284a;padding:12px;border-radius:8px}
+summary{cursor:pointer;color:#c9c1ae}</style></head><body>
+<h1>Daily Tafsir — derniers carrousels</h1><p>Touche une image pour la télécharger.</p>
+${sections.join("\n")}</body></html>`);
+}
+
 async function main() {
+  if (cmd === "index") return buildIndex();
+
   if (cmd === "generate") {
     const surah = +args.surah, from = +args.from, to = +(args.to ?? args.from);
     if (!surah || !from) throw new Error("Usage : generate --surah 2 --from 142 --to 145");
@@ -77,6 +105,8 @@ async function main() {
     for (const d of dirs.slice(0, Math.max(0, dirs.length - keep))) {
       fs.rmSync(path.join(postsDir, d), { recursive: true, force: true });
     }
+
+    buildIndex();
 
     state.surah = range.surah;
     state.nextAyah = range.to + 1;
