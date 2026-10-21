@@ -31,6 +31,21 @@ npm run generate -- --surah 2 --from 158 --to 161 --part 24 --lang ar    # arabe
 Chaque dossier contient les slides + `caption.txt` (titre, légende, hashtags).
 Tu peux déjà poster ces images à la main en attendant de brancher l'automatisation.
 
+## Lancer à la main (versets et récitateur au choix)
+
+**Actions → Carrousel quotidien → Run workflow**, puis remplis :
+
+| Champ | Effet |
+|---|---|
+| Sourate / Premier verset / Dernier verset | le passage à générer. Laisse vide pour le passage suivant de la série |
+| Récitateur | nom affiché sur la couverture et dans la légende + MP3 de la récitation (everyayah.com) |
+| Numéro de partie | optionnel, affiché sur la couverture |
+| Continuer la série | coché : la série automatique reprendra après ces versets. Décoché : elle ne bouge pas |
+
+Chaque passage a un `recitation.mp3` téléchargeable depuis la galerie, à ajouter comme son dans TikTok.
+Le récitateur par défaut (runs automatiques) se règle dans `config.json` (`"reciter"`) ou via la variable `RECITER`.
+Pour ajouter un récitateur : son nom dans `src/reciters.js` et dans la liste du workflow.
+
 ## Configuration
 
 | Fichier | Rôle |

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { surahName, surahNameEn, arNum } from "./surahs.js";
+import { reciterName } from "./reciters.js";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const W = 1080;
@@ -128,6 +129,7 @@ function coverInner(config, p, lang) {
   const L = labels(lang, p);
   const first = quranFix(p.ayat[0].text).split(/\s+/).slice(0, config.coverFirstWords).join(" ");
   const en = lang === "en";
+  const rec = reciterName(p.reciter, lang);
   return `
     <div class="label ${en ? "latin" : ""}">${esc(t.brand)}</div>
     <div class="gold ${en ? "latin" : ""}" style="font-weight:700" data-fit="${en ? 64 : 70}" data-min="40">${esc(t.coverMessage)}</div>
@@ -136,6 +138,7 @@ function coverInner(config, p, lang) {
     ${en ? `<div class="latin gold" data-fit="50" data-min="34">${esc(L.surah(p.surah))}</div>` : ""}
     <div class="${en ? "latin" : ""}" data-fit="54" data-min="36">${L.range(p.from, p.to)}</div>
     <div class="quran" data-fit="46" data-min="30" style="color:var(--muted)">﴿ ${esc(first)} … ﴾</div>
+    ${rec ? `<div class="${en ? "latin" : ""}" data-fit="34" data-min="26" style="color:var(--muted)">${en ? `Recited by ${esc(rec)}` : `بصوت الشيخ ${esc(rec)}`}</div>` : ""}
     <div class="divider"></div>
     <div class="swipe ${en ? "latin" : ""}">${esc(t.swipe)}${p.part ? ` &nbsp;•&nbsp; ${L.part(p.part)}` : ""}</div>`;
 }

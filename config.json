@@ -1,5 +1,6 @@
 {
   "handle": "@tafsir.daily",
+  "reciter": "Yasser_Ad-Dussary_128kbps",
   "languages": ["ar", "en"],
   "ayatPerPost": 4,
   "maxAyatPerPost": 6,

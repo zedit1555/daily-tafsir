@@ -4,6 +4,36 @@ on:
   schedule:
     - cron: "7 17 * * *" # 19h07 heure de Paris (été) / 18h07 (hiver)
   workflow_dispatch:
+    inputs:
+      surah:
+        description: "Sourate (vide = passage suivant de la série)"
+        required: false
+      from_ayah:
+        description: "Premier verset"
+        required: false
+      to_ayah:
+        description: "Dernier verset"
+        required: false
+      reciter:
+        description: "Récitateur (dossier everyayah.com)"
+        type: choice
+        default: Yasser_Ad-Dussary_128kbps
+        options:
+          - Yasser_Ad-Dussary_128kbps
+          - Alafasy_128kbps
+          - Minshawy_Mujawwad_192kbps
+          - Saood_ash-Shuraym_128kbps
+          - Abdurrahmaan_As-Sudais_192kbps
+          - Maher_AlMuaiqly_64kbps
+          - Abdul_Basit_Murattal_192kbps
+          - Husary_128kbps
+      part:
+        description: "Numéro de partie affiché (optionnel)"
+        required: false
+      continue_series:
+        description: "Continuer la série automatique après ces versets"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,10 +55,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
 
       - name: Générer le carrousel du jour
         run: npm run daily
         env:
+          SURAH: ${{ inputs.surah }}
+          FROM_AYAH: ${{ inputs.from_ayah }}
+          TO_AYAH: ${{ inputs.to_ayah }}
+          RECITER: ${{ inputs.reciter || vars.RECITER }}
+          PART: ${{ inputs.part }}
+          CONTINUE: ${{ inputs.continue_series }}
           MUKHTASAR_EMAIL: ${{ secrets.MUKHTASAR_EMAIL }}
           MUKHTASAR_PASSWORD: ${{ secrets.MUKHTASAR_PASSWORD }}
           BOOK_AR: ${{ secrets.BOOK_AR }}
