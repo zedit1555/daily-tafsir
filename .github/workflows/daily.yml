@@ -47,8 +47,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      HAS_DRIVE: ${{ secrets.RCLONE_CONFIG != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,20 +83,6 @@ jobs:
           git add state.json public
           git commit -m "Carrousel $(jq -r .id public/latest.json)" || echo "Rien à commiter"
           git push
-
-      - name: Copier le passage sur Google Drive
-        if: env.HAS_DRIVE == 'true'
-        env:
-          RCLONE_CONFIG_TEXT: ${{ secrets.RCLONE_CONFIG }}
-          DRIVE_FOLDER: ${{ vars.DRIVE_FOLDER || 'Daily Tafsir' }}
-        run: |
-          command -v rclone || (sudo apt-get update && sudo apt-get install -y rclone)
-          mkdir -p ~/.config/rclone && printf '%s\n' "$RCLONE_CONFIG_TEXT" > ~/.config/rclone/rclone.conf
-          ID=$(jq -r .id public/latest.json)
-          for d in public/posts/${ID}-*; do
-            rclone copy "$d" "gdrive:$DRIVE_FOLDER/$(basename "$d")"
-            echo "📁 $DRIVE_FOLDER/$(basename "$d")"
-          done
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

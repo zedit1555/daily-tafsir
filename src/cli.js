@@ -7,6 +7,7 @@
 //   node src/cli.js index       -> régénère public/index.html (galerie des posts)
 //   node src/cli.js publish     -> envoie les posts de public/latest.json à TikTok
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { renderPassage } from "./render.js";
 import { loadPassage, nextRange } from "./data.js";
@@ -56,7 +57,9 @@ function buildIndex() {
     const capPath = path.join(postsDir, d, "caption.txt");
     const cap = fs.existsSync(capPath) ? fs.readFileSync(capPath, "utf8").trim() : "";
     const hasAudio = fs.existsSync(path.join(postsDir, d, "recitation.mp3"));
+    const zip = fs.readdirSync(path.join(postsDir, d)).find((f) => f.endsWith(".zip"));
     return `<section><h2>${esc(d)}</h2>
+${zip ? `<p><a class="btn" href="posts/${d}/${zip}" download>⬇️ Tout télécharger (ZIP)</a></p>` : ""}
 ${hasAudio ? `<p><a href="posts/${d}/recitation.mp3" download>🎧 Télécharger la récitation (MP3)</a></p>` : ""}
 <details><summary>Légende</summary><pre>${esc(cap)}</pre></details>
 <div class="grid">${imgs.map((f) => `<a href="posts/${d}/${f}" download><img loading="lazy" src="posts/${d}/${f}" alt="${f}"></a>`).join("")}</div></section>`;
@@ -67,7 +70,7 @@ ${hasAudio ? `<p><a href="posts/${d}/recitation.mp3" download>🎧 Télécharger
 h1{color:#d9b56a;font-size:22px}h2{font-size:16px;color:#d9b56a;margin:24px 0 8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 img{width:100%;border-radius:8px;display:block}pre{white-space:pre-wrap;background:#16284a;padding:12px;border-radius:8px}
-summary{cursor:pointer;color:#c9c1ae}a{color:#d9b56a}</style></head><body>
+summary{cursor:pointer;color:#c9c1ae}a{color:#d9b56a}.btn{display:inline-block;background:#d9b56a;color:#0f1c33;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600}</style></head><body>
 <h1>Daily Tafsir — derniers carrousels</h1><p>Touche une image pour la télécharger.</p>
 ${sections.join("\n")}</body></html>`);
 }
@@ -127,6 +130,15 @@ async function main() {
         fs.copyFileSync(first, path.join(ROOT, "public", "posts", `${id}-${lang}`, "recitation.mp3"));
       }
       console.log(`🎧 Récitation (${reciter}) ajoutée`);
+    }
+    // Un ZIP par langue (images + légende + récitation) pour tout télécharger d'un coup.
+    for (const lang of config.languages) {
+      const dir = path.join(ROOT, "public", "posts", `${id}-${lang}`);
+      try {
+        execFileSync("zip", ["-q", "-j", path.join(dir, `${id}-${lang}.zip`), ...fs.readdirSync(dir).map((f) => path.join(dir, f))]);
+      } catch {
+        console.warn("⚠️  zip indisponible : pas d'archive pour", lang);
+      }
     }
     fs.writeFileSync(path.join(ROOT, "public", "latest.json"), JSON.stringify({ id, posts }, null, 2));
 

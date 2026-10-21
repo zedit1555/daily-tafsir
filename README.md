@@ -42,7 +42,7 @@ Tu peux déjà poster ces images à la main en attendant de brancher l'automatis
 | Numéro de partie | optionnel, affiché sur la couverture |
 | Continuer la série | coché : la série automatique reprendra après ces versets. Décoché : elle ne bouge pas |
 
-Chaque passage a un `recitation.mp3` téléchargeable depuis la galerie, à ajouter comme son dans TikTok.
+Chaque passage a un ZIP (images + légende + récitation) et un `recitation.mp3` téléchargeables depuis la galerie, à ajouter comme son dans TikTok.
 Le récitateur par défaut (runs automatiques) se règle dans `config.json` (`"reciter"`) ou via la variable `RECITER`.
 Pour ajouter un récitateur : son nom dans `src/reciters.js` et dans la liste du workflow.
 
@@ -87,18 +87,6 @@ Autres sources possibles : fichiers locaux `data/tafsir/ar/2.json` et `data/tafs
 
 Sans `TIKTOK_ENABLED`, le workflow génère et publie seulement les images sur Pages :
 tu les récupères dans `public/posts/` pour poster à la main.
-
-## Copie automatique sur Google Drive (optionnel)
-
-Chaque passage généré peut être copié dans ton Drive, dans `Daily Tafsir/<passage>-ar` et `-en`.
-
-1. Sur ton ordinateur, installe [rclone](https://rclone.org/downloads/), puis lance `rclone config` :
-   `n` (nouveau remote) → nom **`gdrive`** → type **drive** → laisse client_id/secret vides →
-   scope **1** (accès complet) → laisse le reste par défaut → connexion Google dans le navigateur.
-2. Affiche la config avec `rclone config show gdrive`, copie tout le bloc (à partir de `[gdrive]`).
-3. Sur GitHub : secret **`RCLONE_CONFIG`** = ce bloc. Optionnel : variable `DRIVE_FOLDER` pour changer le dossier.
-
-Sans ce secret, l'étape est simplement ignorée.
 
 ## Brancher TikTok
 
