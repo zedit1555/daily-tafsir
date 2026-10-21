@@ -1,0 +1,105 @@
+name: Carrousel quotidien
+
+on:
+  schedule:
+    - cron: "7 17 * * *" # 19h07 heure de Paris (été) / 18h07 (hiver)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-carousel
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Générer le carrousel du jour
+        run: npm run daily
+        env:
+          TAFSIR_AR_URL: ${{ secrets.TAFSIR_AR_URL }}
+          TAFSIR_AR_PATH: ${{ vars.TAFSIR_AR_PATH }}
+          TAFSIR_EN_URL: ${{ secrets.TAFSIR_EN_URL }}
+          TAFSIR_EN_PATH: ${{ vars.TAFSIR_EN_PATH }}
+          TAFSIR_FALLBACK: ${{ vars.TAFSIR_FALLBACK }}
+
+      - name: Enregistrer l'avancement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json public
+          git commit -m "Carrousel $(jq -r .id public/latest.json)" || echo "Rien à commiter"
+          git push
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v4
+
+  publish:
+    needs: deploy
+    if: vars.TIKTOK_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Attendre que les images soient en ligne
+        run: |
+          FIRST=$(jq -r '.posts[-1].files[-1]' public/latest.json)
+          for i in $(seq 1 30); do
+            curl -sfI "${{ vars.PUBLIC_BASE_URL }}/$FIRST" >/dev/null && exit 0
+            sleep 10
+          done
+          echo "Images introuvables sur ${{ vars.PUBLIC_BASE_URL }}" && exit 1
+
+      - name: Envoyer à TikTok
+        id: tiktok
+        run: npm run publish
+        env:
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TIKTOK_REFRESH_TOKEN_EN: ${{ secrets.TIKTOK_REFRESH_TOKEN_EN }}
+          TIKTOK_POST_MODE: ${{ vars.TIKTOK_POST_MODE }}
+
+      - name: Mettre à jour les refresh tokens si TikTok les a changés
+        if: always() && steps.tiktok.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          NEW_MAIN: ${{ steps.tiktok.outputs.new_refresh_token }}
+          NEW_EN: ${{ steps.tiktok.outputs.new_refresh_token_en }}
+        run: |
+          [ -z "$GH_TOKEN" ] && { echo "GH_PAT absent : mets à jour le secret à la main si besoin."; exit 0; }
+          [ -n "$NEW_MAIN" ] && echo "$NEW_MAIN" | gh secret set TIKTOK_REFRESH_TOKEN --repo "${{ github.repository }}"
+          [ -n "$NEW_EN" ] && echo "$NEW_EN" | gh secret set TIKTOK_REFRESH_TOKEN_EN --repo "${{ github.repository }}"
+          exit 0

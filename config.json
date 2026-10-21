@@ -1,0 +1,29 @@
+{
+  "handle": "@tafsir.daily",
+  "languages": ["ar", "en"],
+  "ayatPerPost": 4,
+  "maxAyatPerPost": 6,
+  "coverFirstWords": 5,
+  "background": "assets/background.jpg",
+  "jpegQuality": 92,
+  "text": {
+    "ar": {
+      "brand": "تفسير يومي",
+      "coverMessage": "افهم هذه الآيات في دقيقة",
+      "tafsirLabel": "التفسير المختصر",
+      "endTitle": "تابع للجزء القادم",
+      "endText": "تابع الحساب ليصلك تفسير جديد كل يوم",
+      "swipe": "اسحب ←",
+      "hashtags": ["#تفسير", "#القرآن_الكريم", "#تدبر", "#quran", "#tafsir"]
+    },
+    "en": {
+      "brand": "Daily Tafsir",
+      "coverMessage": "Understand these verses in one minute",
+      "tafsirLabel": "Al-Mukhtasar in Tafsir",
+      "endTitle": "Next part coming soon",
+      "endText": "Follow for a new tafsir every day",
+      "swipe": "Swipe →",
+      "hashtags": ["#quran", "#tafsir", "#islam", "#quranexplained", "#daily_tafsir"]
+    }
+  }
+}
