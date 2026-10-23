@@ -124,22 +124,28 @@ function labels(lang, p) {
   };
 }
 
-function coverInner(config, p, lang) {
+// Couverture = image d'accroche (1re image de la vidéo et couverture TikTok) :
+// la question, la sourate et le TEXTE des versets. Si les versets sont trop longs pour tenir,
+// on retombe sur les premiers mots seulement (full = false).
+function coverInner(config, p, lang, full = true) {
   const t = config.text[lang];
   const L = labels(lang, p);
-  const first = quranFix(p.ayat[0].text).split(/\s+/).slice(0, config.coverFirstWords).join(" ");
   const en = lang === "en";
   const rec = reciterName(p.reciter, lang);
+  const first = quranFix(p.ayat[0].text).split(/\s+/).slice(0, config.coverFirstWords).join(" ");
+  const verses = full
+    ? `<div class="quran" data-fit="50" data-min="32" style="line-height:1.9">${p.ayat
+        .map((a) => `${esc(quranFix(a.text))}&nbsp;<span class="gold">﴿${arNum(a.ayah)}﴾</span>`).join(" ")}</div>`
+    : `<div class="quran" data-fit="46" data-min="30" style="color:var(--muted)">﴿ ${esc(first)} … ﴾</div>`;
   return `
     <div class="label ${en ? "latin" : ""}">${esc(t.brand)}</div>
-    <div class="gold ${en ? "latin" : ""}" style="font-weight:700" data-fit="${en ? 64 : 70}" data-min="40">${esc(t.coverMessage)}</div>
+    <div class="gold ${en ? "latin" : ""}" style="font-weight:700;line-height:1.3" data-fit="${en ? 64 : 76}" data-min="${en ? 54 : 64}">${esc(t.coverMessage)}</div>
+    <div class="quran gold" data-fit="${full ? 80 : 150}" data-min="62" style="line-height:1.4">سورة ${esc(surahName(p.surah))}</div>
+    <div class="${en ? "latin" : ""}" data-fit="40" data-min="28">${en ? `${esc(L.surah(p.surah))} • ` : ""}${L.range(p.from, p.to)}</div>
     <div class="divider"></div>
-    <div class="quran gold" data-fit="150" data-min="90" style="line-height:1.5">سورة ${esc(surahName(p.surah))}</div>
-    ${en ? `<div class="latin gold" data-fit="50" data-min="34">${esc(L.surah(p.surah))}</div>` : ""}
-    <div class="${en ? "latin" : ""}" data-fit="54" data-min="36">${L.range(p.from, p.to)}</div>
-    <div class="quran" data-fit="46" data-min="30" style="color:var(--muted)">﴿ ${esc(first)} … ﴾</div>
-    ${rec ? `<div class="${en ? "latin" : ""}" data-fit="34" data-min="26" style="color:var(--muted)">${en ? `Recited by ${esc(rec)}` : `بصوت الشيخ ${esc(rec)}`}</div>` : ""}
+    ${verses}
     <div class="divider"></div>
+    ${rec ? `<div class="${en ? "latin" : ""}" data-fit="30" data-min="24" style="color:var(--muted)">${en ? `Recited by ${esc(rec)}` : `بصوت الشيخ ${esc(rec)}`}</div>` : ""}
     ${p.part ? `<div class="swipe ${en ? "latin" : ""}">${L.part(p.part)}</div>` : ""}`;
 }
 
@@ -196,7 +202,8 @@ export async function renderPassage(config, passage, outDir, lang = "ar") {
   };
 
   try {
-    await shoot(coverInner(config, passage, lang), "01-cover.jpg", { kind: "cover" });
+    const cover = await shoot(coverInner(config, passage, lang, true), "01-cover.jpg", { kind: "cover" });
+    if (cover.overflow) await shoot(coverInner(config, passage, lang, false), "01-cover.jpg", { kind: "cover" });
     let n = 2;
     for (const [i, a] of passage.ayat.entries()) {
       const id = String(n).padStart(2, "0");

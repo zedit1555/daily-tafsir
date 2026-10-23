@@ -4,7 +4,9 @@ Chaque jour, GitHub Actions génère **deux vidéos du même passage** pour **@t
 une en **arabe** (tafsir Al-Mukhtasar arabe) et une en **anglais** (Al-Mukhtasar anglais).
 
 Déroulé de chaque vidéo (1080×1920) :
-1. **Couverture** « افهم هذه الآيات في دقيقة » + sourate + versets, sur l'isti'adha (أعوذ بالله من الشيطان الرجيم)
+1. **Image d'accroche** (1re image de la vidéo) : « افهم هذه الآيات في دقيقة » + sourate + **texte des versets**
+   (ou leurs premiers mots s'ils sont trop longs), pendant l'isti'adha (أعوذ بالله من الشيطان الرجيم).
+   C'est aussi la couverture TikTok : choisis la 1re image comme couverture si tu publies à la main.
 2. **Une scène par verset** : le verset + son tafsir, affichés pendant la récitation de ce verset
 3. **Scène finale** « تابع للجزء القادم » + @tafsir.daily (3 secondes)
 

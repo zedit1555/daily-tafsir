@@ -48,6 +48,7 @@ export async function publishVideo({ token, videoUrl, title, description, mode =
   const post_info = {
     title: truncate(`${title}\n${description}`, 2200),
     privacy_level: options.includes("PUBLIC_TO_EVERYONE") ? "PUBLIC_TO_EVERYONE" : options[0],
+    video_cover_timestamp_ms: 500, // la couverture TikTok = l'image d'accroche du début
   };
   const data = await call(`${API}/post/publish/video/init/`, token, { post_info, source_info });
   return data.publish_id;
