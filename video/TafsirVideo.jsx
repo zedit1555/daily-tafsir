@@ -80,7 +80,8 @@ const CoverScene = ({ p }) => {
     ? (en ? `Verse ${p.range.from}` : `الآية ${arNum(p.range.from)}`)
     : (en ? `Verses ${p.range.from} – ${p.range.to}` : `الآيات ${arNum(p.range.from)} – ${arNum(p.range.to)}`);
   // L'accroche est visible dès la 1re image (couverture TikTok) ; le reste arrive en douceur.
-  const item = (delay) => ({ opacity: fadeIn(frame, delay), transform: `translateY(${rise(frame, fps, delay)}px)` });
+  // Tout est en place à 0,4 s : l'image prise à 0,5 s sert de couverture TikTok.
+  const item = (delay) => ({ opacity: fadeIn(frame, delay * 0.4, 5), transform: `translateY(${rise(frame, fps, delay * 0.4)}px)` });
   return (
     <Panel>
       <div style={{ fontSize: 30, color: GOLD, ...latin }}>{p.text.brand}</div>
@@ -156,7 +157,7 @@ const AyahScene = ({ p, a, index }) => {
   const counter = en ? `${index + 1} / ${p.ayat.length}` : `${arNum(index + 1)} / ${arNum(p.ayat.length)}`;
 
   return (
-    <Panel opacity={scene} style={{ justifyContent: "flex-start", height: "100%" }}>
+    <Panel opacity={scene}>
       <div style={{ display: "flex", justifyContent: "space-between", width: "100%", fontSize: 32, color: GOLD, ...latin }}>
         <span>{en ? `Surah ${p.surah.nameEn}` : `سورة ${p.surah.nameAr}`}</span>
         <span>{en ? `Verse ${a.ayah}` : `الآية ${arNum(a.ayah)}`}</span>
@@ -180,7 +181,7 @@ const AyahScene = ({ p, a, index }) => {
       <Divider />
       <div style={{ fontSize: 28, color: GOLD, ...latin }}>{p.text.tafsirLabel}</div>
       <div style={{
-        flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", width: "100%",
+        display: "flex", alignItems: "flex-start", justifyContent: "center", width: "100%", minHeight: a.tafsirBox || undefined,
         opacity: tafsirAnim, transform: `translateY(${(1 - tafsirAnim) * 14}px)`,
       }}>
         <div style={{

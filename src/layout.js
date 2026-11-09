@@ -91,7 +91,7 @@ export function layoutAyah(words, tafsir, lang, duration) {
   // Une seule page si possible, avec la plus grande police qui tient.
   for (let size = max; size >= min; size--) {
     if (total <= capacity(lang, size, height) * 0.9) {
-      return { pages, verseSize: VERSE_SIZE, verseBox: box, tafsirSize: size, tafsirPages: [{ text: tafsir, at: 0 }] };
+      return { pages, verseSize: VERSE_SIZE, verseBox: box, tafsirSize: size, tafsirBox: 0, tafsirPages: [{ text: tafsir, at: 0 }] };
     }
   }
   // Sinon plusieurs pages, affichées au prorata de leur longueur pendant la récitation.
@@ -103,7 +103,12 @@ export function layoutAyah(words, tafsir, lang, duration) {
     before += len(text);
     return { text, at };
   });
-  return { pages, verseSize: VERSE_SIZE, verseBox: box, tafsirSize: size, tafsirPages };
+  // Hauteur fixe pour toutes les pages du tafsir de ce verset : le panneau ne bouge pas d'une page à l'autre.
+  const { cw, lh } = TAFSIR[lang];
+  const perLine = Math.floor(INNER_W / (cw * size));
+  const lines = Math.max(...texts.map((t) => Math.ceil(len(t) / perLine)));
+  const tafsirBox = Math.min(height, lines * lh * size);
+  return { pages, verseSize: VERSE_SIZE, verseBox: box, tafsirSize: size, tafsirBox, tafsirPages };
 }
 
 /** Couverture : texte complet des versets s'il tient, sinon les premiers mots. */
