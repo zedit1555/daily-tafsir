@@ -15,7 +15,7 @@ on:
         description: "Dernier verset"
         required: false
       reciter:
-        description: "Récitateur (dossier everyayah.com)"
+        description: "Récitateur (surlignage mot par mot selon les minutages disponibles)"
         type: choice
         default: Yasser_Ad-Dussary_128kbps
         options:
@@ -27,6 +27,15 @@ on:
           - Maher_AlMuaiqly_64kbps
           - Abdul_Basit_Murattal_192kbps
           - Husary_128kbps
+          - Nasser_Alqatami_128kbps
+          - Islam_Sobhi
+      engine:
+        description: "Moteur vidéo"
+        type: choice
+        default: remotion
+        options:
+          - remotion
+          - slides
       part:
         description: "Numéro de partie affiché (optionnel)"
         required: false
@@ -47,6 +56,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,10 +66,17 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Cache de l'audio des sourates
+        uses: actions/cache@v4
+        with:
+          path: .cache/audio
+          key: audio-${{ github.run_id }}
+          restore-keys: audio-
 
-      - name: Générer le carrousel du jour
+      - name: Générer la vidéo du jour
         run: npm run daily
         env:
+          ENGINE: ${{ inputs.engine || vars.ENGINE }}
           SURAH: ${{ inputs.surah }}
           FROM_AYAH: ${{ inputs.from_ayah }}
           TO_AYAH: ${{ inputs.to_ayah }}

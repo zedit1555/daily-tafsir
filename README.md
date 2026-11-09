@@ -7,14 +7,33 @@ Déroulé de chaque vidéo (1080×1920) :
 1. **Image d'accroche** (1re image de la vidéo) : « افهم هذه الآيات في دقيقة » + sourate + **texte des versets**
    (ou leurs premiers mots s'ils sont trop longs), pendant l'isti'adha (أعوذ بالله من الشيطان الرجيم).
    C'est aussi la couverture TikTok : choisis la 1re image comme couverture si tu publies à la main.
-2. **Une scène par verset** : le verset + son tafsir, affichés pendant la récitation de ce verset
+2. **Une scène par verset** : le verset en haut, **chaque mot surligné au moment où il est récité**,
+   et le tafsir dessous (en plusieurs pages animées s'il est long). Un verset long défile par pages.
 3. **Scène finale** « تابع للجزء القادم » + @tafsir.daily (3 secondes)
 
-Un verset trop long est coupé en deux scènes (verset, puis tafsir) qui se partagent sa récitation.
-Les vidéos sont publiées en **release GitHub** et visibles dans la galerie GitHub Pages.
+Les vidéos sont fabriquées avec [Remotion](https://www.remotion.dev) (composants React, dossier `video/`)
+et publiées en **release GitHub**, visibles dans la galerie GitHub Pages.
+Remotion est gratuit pour un particulier ou une entreprise de 3 personnes au plus (voir sa licence).
+
+### Surlignage mot par mot : d'où viennent les minutages
+Le code cherche, dans l'ordre, pour le récitateur choisi et la sourate :
+1. un fichier local `data/timings/<récitateur>/<sourate>.json` (même format que quran.com) ;
+2. [quran-timings](https://github.com/baklarrrr/quran-timings) (CC BY 4.0) : Yasser Al-Dosari, Maher Al-Muaiqly,
+   Nasser Al-Qatami, Islam Sobhi, pour la plupart des sourates (pas Al-Baqara, sauf Islam Sobhi) ;
+3. les minutages officiels de quran.com (Alafasy, Sudais, Shuraim, Husary… selon disponibilité) ;
+4. à défaut, everyayah.com : la vidéo est faite **sans surlignage** (le verset défile quand même).
+
+Le journal du workflow indique la source utilisée (ligne 🎧). L'audio de la sourate est mis en cache entre deux runs.
+
+**Crédit :** les minutages de quran-timings sont sous licence CC BY 4.0 (auteur : baklarrrr), réalisés avec le modèle
+[quran-fastconformer-ctc-ar](https://huggingface.co/mrmuminov/quran-fastconformer-ctc-ar). Les récitations appartiennent
+à leurs récitateurs et éditeurs (mp3quran.net, quran.com, everyayah.com).
 
 L'isti'adha vient d'everyayah.com (celle d'Alafasy si le récitateur choisi n'en a pas).
 Pour utiliser ta propre version, dépose un fichier `assets/istiadha.mp3`.
+
+L'ancien montage (images fixes) reste disponible : choisis **Moteur vidéo : slides** au lancement manuel,
+ou mets la variable `ENGINE=slides`.
 
 ---
 
@@ -23,10 +42,12 @@ Pour utiliser ta propre version, dépose un fichier `assets/istiadha.mp3`.
 ```bash
 npm install
 npx playwright install chromium
-npm run demo                                   # -> out/demo-ar/ et out/demo-en/ (Al-Baqara 142, sans réseau)
+npm run demo                                   # -> out/demo-ar/ et out/demo-en/ (images, Al-Baqara 142, sans réseau)
 npm run generate -- --surah 2 --from 158 --to 161 --part 24              # les deux langues
 npm run generate -- --surah 2 --from 158 --to 161 --part 24 --lang ar    # arabe seulement
 ```
+Remotion télécharge son propre navigateur au premier rendu. Pour utiliser un Chrome déjà installé :
+`REMOTION_BROWSER_EXECUTABLE=/chemin/vers/chrome`.
 
 Chaque dossier contient les slides + `caption.txt` (titre, légende, hashtags).
 Tu peux déjà poster ces images à la main en attendant de brancher l'automatisation.

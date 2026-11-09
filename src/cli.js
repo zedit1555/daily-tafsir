@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Usage :
 //   node src/cli.js generate --surah 2 --from 142 --to 145 [--part 23] [--lang ar|en] [--reciter X]
-//                               -> out/2-142-145-{lang}/ (slides + vidéo)
+//                               -> out/2-142-145-{lang}/ (vidéo + couverture)
 //   node src/cli.js demo        -> out/demo-{lang}/ (slides seulement, sans réseau)
 //   node src/cli.js daily       -> génère la vidéo du prochain passage (une par langue) dans public/posts/
 //                                  (variables SURAH, FROM_AYAH, TO_AYAH, RECITER, PART, CONTINUE pour un passage choisi)
@@ -15,6 +15,8 @@ import { surahName, surahNameEn, arNum, ayahCount } from "./surahs.js";
 import { downloadRecitation } from "./audio.js";
 import { buildVideo } from "./video.js";
 import { reciterName } from "./reciters.js";
+import { prepareRecitation } from "./recitation.js";
+import { renderVideos } from "./remotion.js";
 import { refreshAccessToken, publishVideo, waitForStatus } from "./tiktok.js";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
@@ -52,6 +54,37 @@ async function build(passage, lang, outDir, audio, videoName) {
   }
   console.log(`✅ [${lang}] ${slides.length} scènes${video ? " + vidéo" : ""} -> ${path.relative(ROOT, outDir)}`);
   return { lang, slides, video, ...cap };
+}
+
+// Moteur vidéo : "remotion" (surlignage mot par mot, animations) ou "slides" (ancien montage d'images fixes).
+const ENGINE = process.env.ENGINE || config.engine || "remotion";
+
+/** Génère la vidéo de chaque langue. targets : { [lang]: { dir, name } }. */
+async function makeVideos(passage, targets) {
+  const audioDir = path.join(ROOT, ".audio");
+  try {
+    const posts = {};
+    if (ENGINE === "slides") {
+      const audio = await downloadRecitation(passage.reciter, passage, audioDir);
+      for (const [lang, t] of Object.entries(targets)) posts[lang] = await build(passage, lang, t.dir, audio, t.name);
+      return posts;
+    }
+    const recitation = await prepareRecitation(passage.reciter, passage, audioDir);
+    const outputs = {};
+    for (const [lang, t] of Object.entries(targets)) {
+      fs.mkdirSync(t.dir, { recursive: true });
+      outputs[lang] = { video: path.join(t.dir, t.name), cover: path.join(t.dir, "01-cover.jpg") };
+    }
+    await renderVideos(config, passage, recitation, outputs);
+    for (const [lang, t] of Object.entries(targets)) {
+      const cap = caption(passage, lang);
+      fs.writeFileSync(path.join(t.dir, "caption.txt"), `${cap.title}\n\n${cap.description}\n`);
+      posts[lang] = { lang, ...cap };
+    }
+    return posts;
+  } finally {
+    fs.rmSync(audioDir, { recursive: true, force: true });
+  }
 }
 
 // Page d'accueil GitHub Pages : galerie des derniers posts, pour télécharger les images depuis le téléphone.
@@ -95,11 +128,9 @@ async function main() {
     if (!surah || !from) throw new Error("Usage : generate --surah 2 --from 142 --to 145");
     const reciter = args.reciter || config.reciter;
     const passage = { ...(await loadPassage({ ...config, languages: langs }, { surah, from, to, part: args.part ? +args.part : null })), reciter };
-    const audio = await downloadRecitation(reciter, { surah, from, to }, path.join(ROOT, "out", ".audio"));
-    for (const lang of langs) {
-      await build(passage, lang, path.join(ROOT, "out", `${surah}-${from}-${to}-${lang}`), audio, `${surah}-${from}-${to}-${lang}.mp4`);
-    }
-    fs.rmSync(path.join(ROOT, "out", ".audio"), { recursive: true, force: true });
+    await makeVideos(passage, Object.fromEntries(langs.map((lang) => [lang, {
+      dir: path.join(ROOT, "out", `${surah}-${from}-${to}-${lang}`), name: `${surah}-${from}-${to}-${lang}.mp4`,
+    }])));
     return;
   }
 
@@ -133,20 +164,20 @@ async function main() {
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
     const id = `${stamp}-${range.surah}-${range.from}-${range.to}`;
 
-    const audioDir = path.join(ROOT, ".audio");
-    const audio = await downloadRecitation(reciter, range, audioDir);
+    const made = await makeVideos(passage, Object.fromEntries(config.languages.map((lang) => [lang, {
+      dir: path.join(ROOT, "public", "posts", `${id}-${lang}`), name: `${id}-${lang}.mp4`,
+    }])));
     const posts = [];
     for (const lang of config.languages) {
       const dir = `${id}-${lang}`;
       const name = `${dir}.mp4`;
-      const post = await build(passage, lang, path.join(ROOT, "public", "posts", dir), audio, name);
+      const post = made[lang];
       // La vidéo est publiée comme release GitHub (pas commitée) : lien permanent pour la galerie.
       const videoUrl = REPO ? `https://github.com/${REPO}/releases/download/${id}/${name}` : null;
       fs.writeFileSync(path.join(ROOT, "public", "posts", dir, "meta.json"), JSON.stringify({ videoUrl }, null, 2));
       posts.push({ lang, title: post.title, description: post.description,
         video: `posts/${dir}/${name}`, cover: `posts/${dir}/01-cover.jpg` });
     }
-    fs.rmSync(audioDir, { recursive: true, force: true });
     fs.writeFileSync(path.join(ROOT, "public", "latest.json"), JSON.stringify({ id, posts }, null, 2));
 
     // Ne garde que les 7 derniers passages pour ne pas alourdir le repo.

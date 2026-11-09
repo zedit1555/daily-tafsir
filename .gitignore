@@ -2,4 +2,6 @@ node_modules/
 out/
 .env
 .audio/
+.cache/
+.remotion-public-*/
 public/**/*.mp4
